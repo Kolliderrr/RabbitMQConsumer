@@ -1,3 +1,19 @@
+"""_summary_
+
+    Raises:
+        HTTPException: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+        http_exc: _description_
+        HTTPException: _description_
+
+    Returns:
+        _type_: _description_
+        
+"""
+
+
 import sys
 import os
 
@@ -18,6 +34,14 @@ logger.addHandler(logging.FileHandler('inserver.log'))
 
 # Функция для чтения конфигурационных файлов
 def load_config(file_path: str) -> Dict[str, Any]:
+    """_summary_
+
+    Args:
+        file_path (str): _description_
+
+    Returns:
+        Dict[str, Any]: _description_
+    """
     with open(file_path, 'r') as file:
         return json.load(file)
 
@@ -29,6 +53,14 @@ tasks = {}
 
 # Основная функция для создания и запуска потребителей
 async def consumer(name: str) -> RabbitConsumer:
+    """_summary_
+
+    Args:
+        name (str): _description_
+
+    Returns:
+        RabbitConsumer: _description_
+    """
     config = consumers_config[name]
     consumer_instance = RabbitConsumer(
         broker=config['broker_url'],
@@ -47,6 +79,11 @@ async def consumer(name: str) -> RabbitConsumer:
         await consumer_instance.stop()
 
 async def get_event_loop():
+    """_summary_
+
+    Returns:
+        _type_: _description_
+    """
     return asyncio.get_running_loop()
 
 app = FastAPI(docs_url="/documentation", redoc_url=None)
@@ -54,6 +91,23 @@ app = FastAPI(docs_url="/documentation", redoc_url=None)
 
 @app.post("/consumer_manage/", response_model=APIResponse)
 async def consumer_manage(message: APIMessage, event_loop: asyncio.AbstractEventLoop = Depends(get_event_loop)):
+    """_summary_
+
+    Args:
+        message (APIMessage): _description_
+        event_loop (asyncio.AbstractEventLoop, optional): _description_. Defaults to Depends(get_event_loop).
+
+    Raises:
+        HTTPException: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+        HTTPException: _description_
+        http_exc: _description_
+        HTTPException: _description_
+
+    Returns:
+        _type_: _description_
+    """
     try:
         if message.action == 'start':
             if message.name in consumers:

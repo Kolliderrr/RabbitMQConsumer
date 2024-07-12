@@ -1,17 +1,25 @@
-"""
+"""_summary_
 
+    Raises:
+        e: _description_
+        key_e: _description_
+
+    Returns:
+        _type_: _description_
 """
 import sys
 import os
+import json
+import asyncio
 
 # Добавляем корневой каталог проекта в sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-import asyncio
+
 from faststream import FastStream, Logger
 from faststream.rabbit import RabbitBroker, RabbitExchange, RabbitQueue, RabbitMessage
-from typing import Any, Dict, Optional, Callable
+from typing import Any, Dict, Optional
 from resources.pg_models import main_models, create_pydantic_model, parse_table_model
 from sqlalchemy.exc import IntegrityError, DBAPIError, ResourceClosedError, InvalidRequestError
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -19,7 +27,7 @@ from sqlalchemy import insert
 from configs.patterns_validation import rabbitmq_url_pattern, RabbitMQUrl, PostgreSQLModel, ValidationError
 from typing import Optional
 from uuid import uuid4
-import json
+
 
 with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/consumers.json'), 'r') as consumer_file:
     consumers_config = json.load(consumer_file)
@@ -28,6 +36,10 @@ with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json
     db_configs = json.load(db_json)
 
 class RabbitConsumer:
+    """_summary_
+    
+    
+    """
     def __init__(self,
                  queue: str,
                  exchange: str,
@@ -37,6 +49,22 @@ class RabbitConsumer:
                  db: Optional[str] = None,
                  table_name: str = None,
                  params: Optional[Dict[str, Any]] = None) -> None:
+        """_summary_
+
+        Args:
+            queue (str): _description_
+            exchange (str): _description_
+            broker (str): _description_
+            routing_key (str): _description_
+            name (str, optional): _description_. Defaults to 'consumer'+str(uuid4().hex).
+            db (Optional[str], optional): _description_. Defaults to None.
+            table_name (str, optional): _description_. Defaults to None.
+            params (Optional[Dict[str, Any]], optional): _description_. Defaults to None.
+
+        Raises:
+            e: _description_
+            key_e: _description_
+        """
         try:
             broker_url = RabbitMQUrl(url=broker).url
             self.broker = RabbitBroker(broker_url)
@@ -68,6 +96,7 @@ class RabbitConsumer:
         self.app = FastStream(self.broker)
     
     async def process_message(self, msg: RabbitMessage):
+        
         self.status = f"получил сообщение: {msg}"
         try:
             self.validation_model.model_validate(msg)
