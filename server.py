@@ -5,7 +5,7 @@ import uvicorn
 
 from flask_main import create_app as flask_app
 # from dash_applet.dash_app import create_dash
-# from socketapi import app as socket_app
+from consumers.consumer_app import app as api_app
 
 
 flask_app = flask_app()
@@ -18,7 +18,7 @@ main_app.mount("/flask", WSGIMiddleware(flask_app))
 
 
 # Добавляем маршруты FastAPI
-# main_app.include_router(socket_app.router)
+main_app.include_router(api_app.router)
 
 if __name__ == "__main__":
     

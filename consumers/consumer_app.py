@@ -46,62 +46,60 @@ async def consumer(name: str) -> RabbitConsumer:
         consumer_instance.app.logger.log(e)
         await consumer_instance.stop()
 
+async def get_event_loop():
+    return asyncio.get_running_loop()
 
-
-@asynccontextmanager
-async def startup_event(app: FastAPI):
-    loop_events['loop'] = asyncio.set_event_loop(asyncio.BaseEventLoop())
-    asyncio.set_event_loop(loop_events['loop'])
-    logger.info(f'{loop_events['loop'].is_running()}')
-    loop_events['loop'].run_forever()
-    yield
-    
-loop_events = {}
-
-app = FastAPI(docs_url="/documentation", redoc_url=None, lifespan=startup_event)
+app = FastAPI(docs_url="/documentation", redoc_url=None)
 
 
 @app.post("/consumer_manage/", response_model=APIResponse)
-async def consumer_manage(message: APIMessage):
-    event_loop = loop_events['loop']
-    if message.action == 'start':
-        if message.name in consumers:
-            raise HTTPException(status_code=400, detail="Consumer already running")
-        else:
+async def consumer_manage(message: APIMessage, event_loop: asyncio.AbstractEventLoop = Depends(get_event_loop)):
+    try:
+        if message.action == 'start':
+            if message.name in consumers:
+                raise HTTPException(status_code=400, detail="Consumer already running")
+            else:
+                try:
+                    task = event_loop.create_task(consumer(message.name))
+                    consumers[message.name] = task
+                    return APIResponse(status="success", message=f"Consumer {message.name} started")
+                except Exception as e:
+                    return HTTPException(status_code=500, detail=f"Failed to start consumer {message.name}: {e}")
+
+        elif message.action == 'stop':
+            if message.name not in consumers:
+                raise HTTPException(status_code=400, detail="Consumer not running")
+            
+            task = consumers.pop(message.name)
             try:
-                task = event_loop.create_task(consumer(message.name))
-                consumers[message.name] = task
-                return APIResponse(status="success", message=f"Consumer {message.name} started")
+                consumer_instance = await task
+                await consumer_instance.stop()
+                return APIResponse(status="success", message=f"Consumer {message.name} stopped")
+            except asyncio.CancelledError:
+                return APIResponse(status="success", message=f"Consumer {message.name} stopped")
             except Exception as e:
-                return HTTPException(status_code=500, detail=f"Failed to start consumer {message.name}: {e}")
+                return HTTPException(status_code=500, detail=f"Failed to stop consumer {message.name}: {e}")
 
-    elif message.action == 'stop':
-        if message.name not in consumers:
-            raise HTTPException(status_code=400, detail="Consumer not running")
-        
-        task = consumers.pop(message.name)
-        try:
-            await task
-            await task.stop()
-            return APIResponse(status="success", message=f"Consumer {message.name} stopped")
-        except asyncio.CancelledError:
-            return APIResponse(status="success", message=f"Consumer {message.name} stopped")
-        except Exception as e:
-            return HTTPException(status_code=500, detail=f"Failed to stop consumer {message.name}: {e}")
+        elif message.action == 'status':
+            if message.name not in consumers:
+                raise HTTPException(status_code=400, detail="Consumer not running")
+            
+            task = consumers[message.name]
+            try:
+                consumer_instance = await task
+                status = await consumer_instance.get_status()  # Await here once
+                return APIResponse(status="success", message=status)
+            except Exception as e:
+                return HTTPException(status_code=500, detail=f"Failed to get status of consumer {message.name}: {e}")
 
-    elif message.action == 'status':
-        if message.name not in consumers:
-            raise HTTPException(status_code=400, detail="Consumer not running")
-        
-        task = consumers[message.name]
-        try:
-            status = await task.get_status()
-            return APIResponse(status="success", message=status)
-        except Exception as e:
-            return HTTPException(status_code=500, detail=f"Failed to get status of consumer {message.name}: {e}")
-
-    else:
-        raise HTTPException(status_code=400, detail="Invalid action")
+        else:
+            raise HTTPException(status_code=400, detail="Invalid action")
+    except HTTPException as http_exc:
+        # Handle HTTP exceptions raised within the endpoint
+        raise http_exc
+    except Exception as e:
+        # Handle any unexpected exceptions and return a generic server error
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 

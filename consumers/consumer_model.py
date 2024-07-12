@@ -45,6 +45,7 @@ class RabbitConsumer:
         self.exchange = exchange
         self.status = 'не работает'
         self.name = name
+        self.routing_key = routing_key
         self.table_model = parse_table_model(table_name)
         self.queue = RabbitQueue(queue, routing_key=routing_key, durable=True)
         if params:
@@ -94,21 +95,16 @@ class RabbitConsumer:
         return f"Потребитель {self.name} сейчас {self.status}"
         
     async def run(self):
-        @self.broker.subscriber(self.queue)
+        @self.broker.subscriber(self.queue, self.routing_key)
         async def handler(msg):
             await self.process_message(msg)
             
-        while True:
-            try:
-                self.status = 'начал работу'
-                await self.app.run()
-            except Exception as e:
-                if isinstance(e, KeyboardInterrupt):
-                    await self.app.stop()
-                    break
-                elif isinstance(e, ValidationError):
-                    self.status = 'работает с ошибками'
-                    pass
+        self.status = 'начал работу'
+        try:
+            await self.app.run()
+        except asyncio.CancelledError:
+            await self.stop()
+            
         
     async def stop(self):
         await self.app.stop()
