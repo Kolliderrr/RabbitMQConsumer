@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import URL
 from pydantic import ValidationError
 
-from .resources import RabbitMQForm, PostgresForm, Adress, DynamicForm
+from resources import RabbitMQForm, PostgresForm, Adress, DynamicForm
 
 
 

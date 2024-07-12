@@ -1,1 +1,1 @@
-from .patterns_validation import RabbitMQUrl, APIMessage, APIResponse, PostgreSQLModel
+from patterns_validation import RabbitMQUrl, APIMessage, APIResponse, PostgreSQLModel

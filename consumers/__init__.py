@@ -1,1 +1,1 @@
-from .consumer_model import RabbitConsumer
+from consumer_model import RabbitConsumer, FastStream

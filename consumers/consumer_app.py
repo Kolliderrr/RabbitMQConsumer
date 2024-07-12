@@ -21,12 +21,12 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from contextlib import asynccontextmanager
-from consumers.consumer_model import RabbitConsumer, FastStream
+from consumers import RabbitConsumer, FastStream
 from fastapi import FastAPI, Depends, HTTPException, status, Header, Request
 import asyncio
 from typing import Dict, List, Union, Optional, Any
 import json, logging
-from configs.patterns_validation import APIMessage, APIResponse
+from configs import APIMessage, APIResponse
 
 
 logger = logging.getLogger()
