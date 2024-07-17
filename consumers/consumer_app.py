@@ -62,7 +62,7 @@ async def consumer(name: str) -> RabbitConsumer:
         RabbitConsumer: _description_
     """
     config = consumers_config[name]
-    consumer_instance = RabbitConsumer(
+    consumer_instance: RabbitConsumer = RabbitConsumer(
         broker=config['broker_url'],
         exchange=config['exchange_name'],
         queue=config['queue_name'],

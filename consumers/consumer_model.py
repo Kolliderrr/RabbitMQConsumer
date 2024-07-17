@@ -1,11 +1,11 @@
-"""_summary_
+"""Описание экземпляра потребителя
 
     Raises:
         e: _description_
         key_e: _description_
 
     Returns:
-        _type_: _description_
+        _type_: Class[FastStream]
 """
 import sys
 import os
@@ -36,9 +36,19 @@ with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json
     db_configs = json.load(db_json)
 
 class RabbitConsumer:
-    """_summary_
-    
-    
+    """_Потребитель RabbitMQ
+        
+        Args:
+            queue (str): Очередь RabbitMQ
+            exchange (str): "Биржа" RabbitMQ
+            broker (str): Объект брокера RabbitMQ
+            routing_key (str): Ключ инициализации очереди
+            name (str, optional): Имя потребителя. Defaults to 'consumer'+str(uuid4().hex).
+            db (Optional[str], optional): URL подключения к базе данных. Defaults to None.
+            table_name (str, optional): Название таблицы БД. Defaults to None.
+            params (Optional[Dict[str, Any]], optional): Доп.параметры. Defaults to None.
+        
+        returns: FastStream
     """
     def __init__(self,
                  queue: str,
@@ -49,17 +59,17 @@ class RabbitConsumer:
                  db: Optional[str] = None,
                  table_name: str = None,
                  params: Optional[Dict[str, Any]] = None) -> None:
-        """_summary_
+        """_инициализация потребителя_
 
         Args:
-            queue (str): _description_
-            exchange (str): _description_
-            broker (str): _description_
-            routing_key (str): _description_
-            name (str, optional): _description_. Defaults to 'consumer'+str(uuid4().hex).
-            db (Optional[str], optional): _description_. Defaults to None.
-            table_name (str, optional): _description_. Defaults to None.
-            params (Optional[Dict[str, Any]], optional): _description_. Defaults to None.
+            queue (str): Очередь RabbitMQ
+            exchange (str): "Биржа" RabbitMQ
+            broker (str): Объект брокера RabbitMQ
+            routing_key (str): Ключ инициализации очереди
+            name (str, optional): Имя потребителя. Defaults to 'consumer'+str(uuid4().hex).
+            db (Optional[str], optional): URL подключения к базе данных. Defaults to None.
+            table_name (str, optional): Название таблицы БД. Defaults to None.
+            params (Optional[Dict[str, Any]], optional): Доп.параметры. Defaults to None.
 
         Raises:
             e: _description_
