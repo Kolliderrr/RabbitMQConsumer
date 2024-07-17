@@ -1,1 +1,1 @@
-from consumer_model import RabbitConsumer, FastStream
+from configs import RequestModel, RabbitMQUrl, PostgreSQLModel

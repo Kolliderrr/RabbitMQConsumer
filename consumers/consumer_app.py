@@ -1,36 +1,82 @@
-"""_summary_
-
-    Raises:
-        HTTPException: _description_
-        HTTPException: _description_
-        HTTPException: _description_
-        HTTPException: _description_
-        http_exc: _description_
-        HTTPException: _description_
-
-    Returns:
-        _type_: _description_
-        
-"""
-
-
 import sys
 import os
 
 # Добавляем корневой каталог проекта в sys.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from contextlib import asynccontextmanager
-from consumers import RabbitConsumer, FastStream
-from fastapi import FastAPI, Depends, HTTPException, status, Header, Request
+import logging
+import json
+import os
+from datetime import datetime
+
+from faststream import BaseMiddleware
+from fastapi import FastAPI, HTTPException
+from faststream.rabbit import RabbitBroker, RabbitQueue, RabbitMessage
+from faststream.rabbit.fastapi import Logger
+
 import asyncio
-from typing import Dict, List, Union, Optional, Any
-import json, logging
-from configs import APIMessage, APIResponse
+from contextlib import asynccontextmanager
+from pydantic import BaseModel, ValidationError
+from typing import Dict, Any
+from consumers import RequestModel
+from resources.pg_models import parse_table_model, create_pydantic_model
 
 
-logger = logging.getLogger()
-logger.addHandler(logging.FileHandler('inserver.log'))
+# Настройка логгера
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # Установите уровень логгирования на INFO
+
+# Обработчик для записи логов в файл
+file_handler = logging.FileHandler('new.log')
+file_handler.setLevel(logging.INFO)
+
+consumers = {}
+middlewares = {}  # Словарь для хранения экземпляров MyMiddleware
+
+class ConsumerState:
+    def __init__(self, name, queue_name, routing_key, sql_model, pydantic_model):
+        self.name = name
+        self.queue_name = queue_name
+        self.routing_key = routing_key
+        self.is_running = False
+        self.start_time = None
+        self.message_count = 0
+        self.sql_model = sql_model
+        self.pydantic_model = pydantic_model
+
+    def start(self):
+        self.is_running = True
+        self.start_time = datetime.now()
+
+    def stop(self):
+        self.is_running = False
+
+    def increment_message_count(self):
+        self.message_count += 1
+
+    def get_state(self):
+        return {
+            "is_running": self.is_running,
+            "start_time": self.start_time,
+            "message_count": self.message_count
+        }
+
+async def handle_message(consumer_state: ConsumerState, msg: RabbitMessage):
+    # Validate message
+    # print(msg.body)
+    # print(msg.decoded_body)
+    # message_body = json.load(msg.decoded_body)
+    try:
+        consumer_state.pydantic_model(**msg.decoded_body)
+    except Exception as e:
+        logger.error(f"Message validation failed: {e}")
+        return
+
+    # Increment message count
+    consumer_state.increment_message_count()
+
+    logger.info(f"Message received: {msg.body}")
+    print(msg.decoded_body)
 
 # Функция для чтения конфигурационных файлов
 def load_config(file_path: str) -> Dict[str, Any]:
@@ -47,113 +93,80 @@ def load_config(file_path: str) -> Dict[str, Any]:
 
 consumers_config = load_config(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/consumers.json'))
 db_config = load_config(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json'))
-consumers = {}
-tasks = {}
+
+broker = RabbitBroker('amqp://admin:Emperor011@192.168.20.243:5672')
 
 
-# Основная функция для создания и запуска потребителей
-async def consumer(name: str) -> RabbitConsumer:
-    """_summary_
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print('Starting RabbitMQ connection...')
+    await broker.connect()
+    print('Connection started!')
+    yield
+    await broker.close()
+    print('FastAPI is shutting down...')
 
-    Args:
-        name (str): _description_
+app = FastAPI(lifespan=lifespan)
 
-    Returns:
-        RabbitConsumer: _description_
-    """
-    config = consumers_config[name]
-    consumer_instance: RabbitConsumer = RabbitConsumer(
-        broker=config['broker_url'],
-        exchange=config['exchange_name'],
-        queue=config['queue_name'],
-        routing_key=config['routing_key'],
-        db=config['db'],
-        table_name=config['table'],
-        name=name
-    )
-    try:
-        await consumer_instance.run()
-        return consumer_instance
-    except Exception as e:
-        consumer_instance.app.logger.log(e)
-        await consumer_instance.stop()
-
-async def get_event_loop():
-    """_summary_
-
-    Returns:
-        _type_: _description_
-    """
-    return asyncio.get_running_loop()
-
-app = FastAPI(docs_url="/documentation", redoc_url=None)
-
-
-@app.post("/consumer_manage/", response_model=APIResponse)
-async def consumer_manage(message: APIMessage, event_loop: asyncio.AbstractEventLoop = Depends(get_event_loop)):
-    """_summary_
-
-    Args:
-        message (APIMessage): _description_
-        event_loop (asyncio.AbstractEventLoop, optional): _description_. Defaults to Depends(get_event_loop).
-
-    Raises:
-        HTTPException: _description_
-        HTTPException: _description_
-        HTTPException: _description_
-        HTTPException: _description_
-        http_exc: _description_
-        HTTPException: _description_
-
-    Returns:
-        _type_: _description_
-    """
-    try:
-        if message.action == 'start':
-            if message.name in consumers:
-                raise HTTPException(status_code=400, detail="Consumer already running")
+@app.post('/consumer/', include_in_schema=True)
+async def start_new_consumer(request: RequestModel):
+    if request.action == 'start':
+        try:
+            if not request.params:
+                config = consumers_config[request.name]
             else:
-                try:
-                    task = event_loop.create_task(consumer(message.name))
-                    consumers[message.name] = task
-                    return APIResponse(status="success", message=f"Consumer {message.name} started")
-                except Exception as e:
-                    return HTTPException(status_code=500, detail=f"Failed to start consumer {message.name}: {e}")
-
-        elif message.action == 'stop':
-            if message.name not in consumers:
-                raise HTTPException(status_code=400, detail="Consumer not running")
+                config = {
+                    'queue_name': request.params.queue_name,
+                    'routing_key': request.params.routing_key,
+                    'db': request.params.db,
+                    'table': request.params.table_name,
+                }
+            sql_model = parse_table_model(table_name=config['table'])
+            pydantic_model = create_pydantic_model(table_name=config['table'])
+            consumer_state = ConsumerState(request.name,
+                                           config['queue_name'],
+                                           config['routing_key'],
+                                           sql_model=sql_model,
+                                           pydantic_model=pydantic_model)
             
-            task = consumers.pop(message.name)
-            try:
-                consumer_instance = await task
-                await consumer_instance.stop()
-                return APIResponse(status="success", message=f"Consumer {message.name} stopped")
-            except asyncio.CancelledError:
-                return APIResponse(status="success", message=f"Consumer {message.name} stopped")
-            except Exception as e:
-                return HTTPException(status_code=500, detail=f"Failed to stop consumer {message.name}: {e}")
-
-        elif message.action == 'status':
-            if message.name not in consumers:
-                raise HTTPException(status_code=400, detail="Consumer not running")
             
-            task = consumers[message.name]
-            try:
-                consumer_instance = await task
-                status = await consumer_instance.get_status()  # Await here once
-                return APIResponse(status="success", message=status)
-            except Exception as e:
-                return HTTPException(status_code=500, detail=f"Failed to get status of consumer {message.name}: {e}")
-
-        else:
-            raise HTTPException(status_code=400, detail="Invalid action")
-    except HTTPException as http_exc:
-        # Handle HTTP exceptions raised within the endpoint
-        raise http_exc
-    except Exception as e:
-        # Handle any unexpected exceptions and return a generic server error
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-
+            async def custom_handler(msg: RabbitMessage):
+                await handle_message(consumer_state, msg)
+                
+            consumer = broker.subscriber(
+                RabbitQueue(config['queue_name'], durable=True, routing_key=config['routing_key'])
+            )
+            
+            consumer(custom_handler)
+            consumer_state.start()
+            broker.setup_subscriber(consumer)
+            await consumer.start()
+            logger.info('Consumer %s started', request.name)
+            consumers[request.name] = consumer
+            middlewares[request.name] = consumer_state
+        except Exception as e:
+            logger.error(e)
+            print(e)
+            return HTTPException(status_code=422, detail=str(e))
+            
+    elif request.action == 'stop':
+        consumer = consumers.pop(request.name)
+        consumer_state: ConsumerState = middlewares[request.name]
+        await consumer.close()
+        consumer_state.stop()
+        logger.info('Consumer %s stopped', request.name)
+    elif request.action == 'check':
+        
+        try:
+            consumer_state: ConsumerState = middlewares[request.name]
+            return consumer_state.get_state()
+        except Exception:
+            return HTTPException(status_code=404, detail="Consumer not found")
+    
+    
+if __name__ == '__main__':
+    import uvicorn
+    try:
+        uvicorn.run(app, host='127.0.0.1', port=8008, log_level='info')
+    except KeyboardInterrupt:
+        print('Shutting down server...')
