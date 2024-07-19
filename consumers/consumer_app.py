@@ -11,6 +11,7 @@ from datetime import datetime
 
 from faststream import BaseMiddleware
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.wsgi import WSGIMiddleware
 from faststream.rabbit import RabbitBroker, RabbitQueue, RabbitMessage
 from faststream.rabbit.fastapi import Logger
 
@@ -21,10 +22,13 @@ from typing import Dict, Any
 from consumers import RequestModel
 from resources.pg_models import parse_table_model, create_pydantic_model
 
+from flask_main import create_app
+
 
 # Настройка логгера
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)  # Установите уровень логгирования на INFO
+
 
 # Обработчик для записи логов в файл
 file_handler = logging.FileHandler('new.log')
@@ -76,7 +80,6 @@ async def handle_message(consumer_state: ConsumerState, msg: RabbitMessage):
     consumer_state.increment_message_count()
 
     logger.info(f"Message received: {msg.body}")
-    print(msg.decoded_body)
 
 # Функция для чтения конфигурационных файлов
 def load_config(file_path: str) -> Dict[str, Any]:
@@ -110,63 +113,70 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post('/consumer/', include_in_schema=True)
 async def start_new_consumer(request: RequestModel):
-    if request.action == 'start':
-        try:
-            if not request.params:
-                config = consumers_config[request.name]
-            else:
-                config = {
-                    'queue_name': request.params.queue_name,
-                    'routing_key': request.params.routing_key,
-                    'db': request.params.db,
-                    'table': request.params.table_name,
-                }
-            sql_model = parse_table_model(table_name=config['table'])
-            pydantic_model = create_pydantic_model(table_name=config['table'])
-            consumer_state = ConsumerState(request.name,
-                                           config['queue_name'],
-                                           config['routing_key'],
-                                           sql_model=sql_model,
-                                           pydantic_model=pydantic_model)
-            
-            
-            async def custom_handler(msg: RabbitMessage):
-                await handle_message(consumer_state, msg)
+    try:
+        if request.action == 'start':
+            try:
+                if not request.params:
+                    config = consumers_config[request.name]
+                else:
+                    config = {
+                        'queue_name': request.params.queue_name,
+                        'routing_key': request.params.routing_key,
+                        'db': request.params.db,
+                        'table': request.params.table_name,
+                    }
+                sql_model = parse_table_model(table_name=config['table'])
+                pydantic_model = create_pydantic_model(table_name=config['table'])
+                consumer_state = ConsumerState(request.name,
+                                            config['queue_name'],
+                                            config['routing_key'],
+                                            sql_model=sql_model,
+                                            pydantic_model=pydantic_model)
                 
-            consumer = broker.subscriber(
-                RabbitQueue(config['queue_name'], durable=True, routing_key=config['routing_key'])
-            )
-            
-            consumer(custom_handler)
-            consumer_state.start()
-            broker.setup_subscriber(consumer)
-            await consumer.start()
-            logger.info('Consumer %s started', request.name)
-            consumers[request.name] = consumer
-            middlewares[request.name] = consumer_state
-        except Exception as e:
-            logger.error(e)
-            print(e)
-            return HTTPException(status_code=422, detail=str(e))
-            
-    elif request.action == 'stop':
-        consumer = consumers.pop(request.name)
-        consumer_state: ConsumerState = middlewares[request.name]
-        await consumer.close()
-        consumer_state.stop()
-        logger.info('Consumer %s stopped', request.name)
-    elif request.action == 'check':
-        
-        try:
+                
+                async def custom_handler(msg: RabbitMessage):
+                    await handle_message(consumer_state, msg)
+                    
+                consumer = broker.subscriber(
+                    RabbitQueue(config['queue_name'], durable=True, routing_key=config['routing_key'])
+                )
+                
+                consumer(custom_handler)
+                consumer_state.start()
+                broker.setup_subscriber(consumer)
+                await consumer.start()
+                logger.info('Consumer %s started', request.name)
+                consumers[request.name] = consumer
+                middlewares[request.name] = consumer_state
+            except Exception as e:
+                logger.error(e)
+                print(e)
+                return HTTPException(status_code=422, detail=str(e))
+                
+        elif request.action == 'stop':
+            consumer = consumers.pop(request.name)
             consumer_state: ConsumerState = middlewares[request.name]
-            return consumer_state.get_state()
-        except Exception:
-            return HTTPException(status_code=404, detail="Consumer not found")
-    
-    
+            await consumer.close()
+            consumer_state.stop()
+            logger.info('Consumer %s stopped', request.name)
+        elif request.action == 'check':
+            
+            try:
+                consumer_state: ConsumerState = middlewares[request.name]
+                return consumer_state.get_state()
+            except Exception:
+                return HTTPException(status_code=404, detail="Consumer not found")
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        for consumer in consumers.values:
+            await consumer.close()
+        
+flask_app = create_app()
+
+app.mount("/flask", WSGIMiddleware(flask_app))
+
 if __name__ == '__main__':
     import uvicorn
     try:
-        uvicorn.run(app, host='127.0.0.1', port=8008, log_level='info')
+        uvicorn.run(app, host='127.0.0.1', port=8008, log_level='ERROR')
     except KeyboardInterrupt:
         print('Shutting down server...')

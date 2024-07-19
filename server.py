@@ -5,10 +5,11 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
+from contextlib import asynccontextmanager
 
 from flask_main import create_app as flask_app
 # from dash_applet.dash_app import create_dash
-from consumers.consumer_app import app as api_app
+from consumers.consumer_app import create_app as create_api_app
 
 
 flask_app = flask_app()
@@ -18,6 +19,8 @@ main_app = FastAPI()
 
 # Монтируем Flask приложение
 main_app.mount("/flask", WSGIMiddleware(flask_app))
+
+api_app = create_api_app()
 
 # Добавляем маршруты FastAPI
 main_app.include_router(api_app.router)

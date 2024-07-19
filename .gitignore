@@ -5,3 +5,4 @@ configs/db_config.json
 configs/tables.json
 consumers/inserver.log
 pylint_report.txt
+simple.ipynb

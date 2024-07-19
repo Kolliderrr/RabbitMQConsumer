@@ -5,11 +5,11 @@ from wtforms.validators import DataRequired
 from pydantic import BaseModel, Field
 import os, json
 
-if os.path.isfile(r'configs\db_config.json') is False:
-    with open(r'configs\db_config.json', 'w') as db_configs:
+if os.path.isfile(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json') )is False:
+    with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json'), 'w') as db_configs:
         json.dump({''}, db_configs)
     
-with open(r'configs\db_config.json', 'r') as db_config_file:
+with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json'), 'r') as db_config_file:
     db_configs = json.load(db_config_file)
 
 db_choices = [(value, key) for key, value in db_configs.items()]

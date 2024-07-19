@@ -70,14 +70,14 @@ def create_app():
         """
         form = RabbitMQForm()
         if form.validate_on_submit():
-            if not os.path.isfile(r'configs\consumers.json'):
+            if not os.path.isfile(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/consumers.json')):
                 with open(r'configs\consumers.json', 'w', encoding='cp1251'):
                     pass
 
-            with open(r'configs\consumers.json', 'r', encoding='cp1251') as old_broker_config:
+            with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/consumers.json'), 'r', encoding='cp1251') as old_broker_config:
                 old_config = json.load(old_broker_config)
 
-            with open(r'configs\consumers.json', 'w', encoding='cp1251') as broker_config:
+            with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/consumers.json'), 'w', encoding='cp1251') as broker_config:
                 config = {
                     'broker_url': form.broker_url.data,
                     'queue_name': form.queue_name.data,
@@ -119,12 +119,12 @@ def create_app():
                 inspector = inspect(engine)
                 tables = inspector.get_table_names()
 
-                if os.path.isfile(r'configs\db_config.json') is False:
+                if os.path.isfile(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json')) is False:
                     if os.name != 'posix':
-                        with open(r'configs\db_config.json', 'w', encoding='cp1251') as db_file:
+                        with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json'), 'w', encoding='cp1251') as db_file:
                             json.dump({}, db_file)
 
-                with open(r'configs\db_config.json', 'r', encoding='cp1251') as db_json:
+                with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json'), 'r', encoding='cp1251') as db_json:
                     old_db_data = json.load(db_json)
 
                 old_db_data[str(form.database_name.data + \
@@ -133,7 +133,7 @@ def create_app():
                             f"{form.password.data}@{form.host.data}:{form.port.data}/" +
                             f"{form.database_name.data}")
 
-                with open(r'configs\db_config.json', 'w', encoding='cp1251') as db_to_load:
+                with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/db_config.json'), 'w', encoding='cp1251') as db_to_load:
                     json.dump(old_db_data, db_to_load)
 
                 flash('Postgres settings saved successfully!', 'success')
@@ -158,7 +158,7 @@ def create_app():
         form = DynamicForm()
 
         # Проверяем наличие файла и создаем его, если он отсутствует
-        if not os.path.isfile('configs/tables.json'):
+        if not os.path.isfile(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/tables.json')):
             with open('configs/tables.json', 'w', encoding='cp1251') as db_tables:
                 json.dump({}, db_tables)
 
@@ -170,7 +170,7 @@ def create_app():
                 form.dynamic_fields.pop_entry()
 
             elif form.validate_on_submit():
-                with open('configs/tables.json', 'r', encoding='cp1251') as old_db_tables:
+                with open(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/tables.json'), 'r', encoding='cp1251') as old_db_tables:
                     tables_data = json.load(old_db_tables)
 
                 # Извлекаем данные из формы
@@ -188,7 +188,7 @@ def create_app():
                 tables_data[new_table_name] = new_fields
 
                 # Записываем обновленные данные обратно в файл
-                with open(os.path.join(r'configs/tables.json'),
+                with open(os.path.join(os.path.join(r'C:\Users\user\RabbitMQ_project','configs/tables.json')),
                           'w', encoding='cp1251') as db_tables:
                     json.dump(tables_data, db_tables)
 
