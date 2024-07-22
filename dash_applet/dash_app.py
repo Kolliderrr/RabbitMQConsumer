@@ -7,7 +7,7 @@ import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 import dash_extensions as dext
 import logging
-
+from dash_applet.dash_tasks import generate_table_headers, generate_table_row
 from dash import Dash, _dash_renderer, html, dcc, Input, Output, State, callback_context, dash_table
 
 
@@ -123,6 +123,11 @@ def create_dash(environ=None, start_response=None, server=None):
     )
     def drawer_demo(n_clicks):
         return True
+    
+    
+    def update_graph():
+        pass
+    
     
     return app
 if __name__ == '__main__':

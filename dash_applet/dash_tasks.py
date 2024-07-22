@@ -59,7 +59,7 @@ def generate_table(content: Union[List[Dict[str, Any]], pd.DataFrame]) -> dmc.Ta
     except MyException:
         return html.Div('Неправильный формат данных')
 
-def generate_table_headers(columns: Union[List[str], tuple]) -> dmc.TableThead:
+def generate_table_headers(columns: Union[List[str], Tuple[str]]) -> dmc.TableThead:
     """Генератор заголовков таблицы dmc.Table
 
     Args:
@@ -77,11 +77,21 @@ def generate_table_headers(columns: Union[List[str], tuple]) -> dmc.TableThead:
             )
         )
 
-def generate_table_row(data: Union[Dict[List[Any]], Dict[Tuple[Any]]]) -> dmc.TableTr[dmc.TableTd]:
+def make_sparkline(data, key, k):
+    return dmc.Sparkline(
+        w=200,
+        h=60,
+        data=data,
+        trendColors={"positive": "teal.6", "negative": "red.6", "neutral": "gray.5"},
+        fillOpacity=0.2,
+        id=f'{key}-{k}-cell'
+    )
+
+def generate_table_row(data: Dict[str, Dict[str, Any]]) -> dmc.TableTr:
     """_summary_
 
     Args:
-        data (Union[Dict[List[Any]], Dict[Tuple[Any]]]): на входе - словарь с названием потребителя в ключе
+        data (Union[Dict[str, List[Any]], Dict[str, Tuple[Any]]]): на входе - словарь с названием потребителя в ключе
             и Union[List, Tuple] данных
 
     Returns:
@@ -90,10 +100,15 @@ def generate_table_row(data: Union[Dict[List[Any]], Dict[Tuple[Any]]]) -> dmc.Ta
     return [
             dmc.TableTr(
                 [
-                    dmc.TableTd(el, id=f'{key}-{i}-cell')
-                    for i, el in elements
+                    dmc.TableTd(el, id=f'{key}-{k}-cell')
+                    if k != 'current_msgs'
+                    else dmc.TableTd(children=[
+                        make_sparkline(el, key, k)
+                    ])
+                    for k, el in elements.items()
                 ],
-                id=f'{key}-row'
+                className=f'{key}-row'
             )
         for key, elements in data.items()
             ]
+    
