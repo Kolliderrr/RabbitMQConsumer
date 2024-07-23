@@ -125,8 +125,13 @@ def create_dash(environ=None, start_response=None, server=None):
         return True
     
     
-    def update_graph():
-        pass
+    def update_main():
+        ctx = callback_context
+        
+        if not ctx.triggered:
+            return None
+        
+        
     
     
     return app
