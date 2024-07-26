@@ -8,8 +8,6 @@ import logging
 import json
 import os
 from datetime import datetime
-
-from faststream import BaseMiddleware
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.wsgi import WSGIMiddleware
 from faststream.rabbit import RabbitBroker, RabbitQueue, RabbitMessage
@@ -177,6 +175,6 @@ app.mount("/flask", WSGIMiddleware(flask_app))
 if __name__ == '__main__':
     import uvicorn
     try:
-        uvicorn.run(app, host='127.0.0.1', port=8008, log_level='ERROR')
+        uvicorn.run(app, host='127.0.0.1', port=8008, log_level="error")
     except KeyboardInterrupt:
         print('Shutting down server...')
