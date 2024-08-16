@@ -6,3 +6,5 @@ configs/tables.json
 consumers/inserver.log
 pylint_report.txt
 simple.ipynb
+templates/superset.html
+flask_superset.py
