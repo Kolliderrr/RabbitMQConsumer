@@ -8,3 +8,4 @@ pylint_report.txt
 simple.ipynb
 templates/superset.html
 flask_superset.py
+*.log
