@@ -1,0 +1,21 @@
+version: '3.9'
+
+services:
+  rabbitmq_service:
+    build:
+      context: .
+      dockerfile: .Dockerfile
+    container_name: rabbitmq_python
+    volumes:
+      - ./src:/app  # Монтируем локальную папку в контейнер
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: ["python", "/app/main.py"]  # Запуск скрипта
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
