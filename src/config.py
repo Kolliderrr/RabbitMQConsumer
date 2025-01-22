@@ -8,8 +8,7 @@ from typing import Literal, Optional, Dict, Any
 
 # Переменные по умолчанию
 TABLE_NAME: Optional[Literal[True]] = None
-event_names: Optional[Dict[str, str]] = {}
-
+table_names: Optional[Dict[str, str]] = {}
 
 # Проверяем, существует ли custom_config.py
 custom_config_path = os.path.join(os.getcwd(), 'custom_config.py')
@@ -26,15 +25,14 @@ if os.path.exists(custom_config_path):
         print(f"TABLE_NAME переопределён: {TABLE_NAME}")
 
     if hasattr(custom_config, 'event_names'):
-        event_names = getattr(custom_config, 'event_names')
+        table_names = getattr(custom_config, 'event_names')
         print(f"event_names переопределён: {event_names}")
     
-    method = getattr(custom_config, 'custom_method', default_method)
 else:
     print("Файл custom_config.py не найден.")
 
 # Текущие значения переменных
-print(f"Итоговые значения:\nTABLE_NAME: {TABLE_NAME}\nevent_names: {event_names}")
+print(f"Итоговые значения:\nTABLE_NAME: {TABLE_NAME}\nevent_names: {table_names}")
 
 event_names: Optional[Dict[str, str]] = {}
 

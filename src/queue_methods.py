@@ -22,6 +22,9 @@ from datetime import datetime
 import sys
 from config import TABLE_NAME, python_reverse_types, table_names
 
+import os
+import importlib.util
+
 # Настройка логгера
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Меняем уровень на DEBUG, чтобы видеть больше логов
@@ -70,7 +73,7 @@ async def db_write(
 
 async def branch_task(
     table_name: str
-    ) -> Optional[TABLE_NAME]:
+    ) -> Optional[str]:
     """Выбор таблицы на основе event-name
 
     Args:
@@ -121,3 +124,19 @@ async def process_message(
         Optional[Union[Dict[str, Any],List[Dict[str, Any]]]]: В случае ошибки будет возвращать результат ошибки
     """
     pass
+
+# Проверяем, существует ли custom_config.py
+custom_config_path = os.path.join(os.getcwd(), 'custom_config.py')
+
+if os.path.exists(custom_config_path):
+    # Динамически импортируем custom_config
+    spec = importlib.util.spec_from_file_location("custom_config", custom_config_path)
+    custom_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(custom_config)
+    
+    process_message = getattr(custom_config, 'process_message', process_message)
+    on_conflict_do = getattr(custom_config, 'on_conflict_do', on_conflict_do)
+    branch_task = getattr(custom_config, 'branch_task', branch_task)
+    db_write = getattr(custom_config, 'db_write', db_write)
+    
+    
