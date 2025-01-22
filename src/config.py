@@ -26,15 +26,13 @@ if os.path.exists(custom_config_path):
 
     if hasattr(custom_config, 'event_names'):
         table_names = getattr(custom_config, 'event_names')
-        print(f"event_names переопределён: {event_names}")
+        print(f"event_names переопределён: {table_names}")
     
 else:
     print("Файл custom_config.py не найден.")
 
 # Текущие значения переменных
 print(f"Итоговые значения:\nTABLE_NAME: {TABLE_NAME}\nevent_names: {table_names}")
-
-event_names: Optional[Dict[str, str]] = {}
 
 python_reverse_types = {
         'int' : dialect_postgres.BIGINT,
