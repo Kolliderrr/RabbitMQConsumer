@@ -14,6 +14,11 @@ from sqlalchemy.ext.asyncio import \
     create_async_engine, AsyncEngine
 from sqlalchemy.schema import Table
 import sys
+import os
+
+NAME_QUEUE = os.getenv('NAME_QUEUE')
+AMQP_URL = os.getenv('AMQP_URL')
+PORSGRES_URL = os.getenv('POSTGRES_URL')
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Меняем уровень на DEBUG, чтобы видеть больше логов
@@ -56,13 +61,13 @@ async def read_message(
         Message(**json_data)
     except ValidationError as e:
         logger.error(e)
-    table_name = await branch_task(json_data['event']['name'])
+    table_name = await branch_task(json_data['table_name'])
     if table_name:
         try:
-            await db_write(json_data['event']['payload'], table_models[table_name], engine, table_models)
-            logger.info(f'{json_data['event']['name']} - {json_data['accepted_timestamp']}')
+            await db_write(json_data['payload'], table_models[table_name], engine, table_models)
+            logger.info(f'{json_data['name']} - {json_data['accepted_timestamp']}')
         except Exception as e:
-            logger.error('Произошла ошибка {}. \n Сообщение \n {}'.format(e, json_data['event']['payload']))
+            logger.error('Произошла ошибка {}. \n Сообщение \n {}'.format(e, json_data['payload']))
             raise
 
 async def connect_to_queue(channel: RobustConnection) -> Queue:
@@ -74,9 +79,8 @@ async def connect_to_queue(channel: RobustConnection) -> Queue:
     Returns:
         Queue: Очередь
     """
-    name_queue = 'purchasing-analytics.data'
-    queue: Queue = await channel.declare_queue(name_queue, durable=True, auto_delete=False)
-    print(f'Connected to queue {name_queue}')
+    queue: Queue = await channel.declare_queue(NAME_QUEUE, durable=True, auto_delete=False)
+    print(f'Connected to queue {NAME_QUEUE}')
     return queue
     
     
@@ -85,12 +89,12 @@ async def main() -> None:
     """
     # connection = await aio_pika.connect_robust('amqp://admin:Emperor011@192.168.20.122:5672')
     connection: RobustConnection = await aio_pika.\
-        connect_robust('amqp://purchasing-analytics:pai9Gusu@esb.etsltd.lcl:5672')
+        connect_robust(AMQP_URL)
     channel: Channel = await connection.channel()
     await channel.set_qos(prefetch_count=2)
 
     engine: AsyncEngine = create_async_engine\
-        ('postgresql+asyncpg://first_user:Emperor011@192.168.20.122:8085/analytics_v2', future=True, isolation_level="AUTOCOMMIT")
+        (PORSGRES_URL, future=True, isolation_level="AUTOCOMMIT")
     table_models: Dict[str, Table] = main_models()
     queue: Queue = await connect_to_queue(channel)
     while True:

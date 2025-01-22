@@ -1,16 +1,37 @@
 version: '3.9'
 
 services:
+  rabbitmq:
+    image: rabbitmq:latest
+    restart: unless-stopped
+    container_name: rabbitmq_server
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - rabbit_host
+
   rabbitmq_service:
     build:
-      context: .
+      context: ./rabbitmq
       dockerfile: .Dockerfile
     container_name: rabbitmq_python
+    restart: unless-stopped
     volumes:
       - ./src:/app  # Монтируем локальную папку в контейнер
     environment:
       - PYTHONUNBUFFERED=1
+      - AMQP_URL="rabbit_host:5672"
+      - NAME_QUEUE="default_queue" # replace value to your name
+      - PORSGRES_URL="rabbit_host:5432"
     command: ["python", "/app/main.py"]  # Запуск скрипта
+    networks:
+      - rabbit_host
     deploy:
       resources:
         limits:
@@ -19,3 +40,44 @@ services:
         reservations:
           cpus: '1'
           memory: 1G
+    depends_on:
+      - rabbitmq
+
+  postgres:
+    build: 
+      context: ./postgres
+      dockerfile: .Dockerfile
+    restart: unless-stopped
+    shm_size: 256mb
+    container_name: postgresql
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_DATABASE:-postgres}
+    volumes:
+      - ./postgres/pgdata:/var/lib/postgresql/data  # Внешняя папка для данных БД
+      - ./postgres/logs:/logs  # Папка для логов
+    healthcheck:
+      test: "pg_isready -q -d ${DB_DATABASE} -U ${DB_USERNAME}"
+      interval: 30s
+      timeout: 10s
+      retries: 100
+      start_period: 40s
+      start_interval: 5s
+    ports:
+      - "5432:5432"
+    networks:
+      - rabbit_host
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 2G
+    labels:
+      - "prometheus_postgres=true"
+
+networks:
+  rabbit_host:

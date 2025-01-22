@@ -6,9 +6,14 @@ from sqlalchemy import create_engine, select, insert, update, text, URL
 from sqlalchemy.schema import MetaData, Table, Column
 from sqlalchemy.dialects import postgresql as dialect_postgres
 
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import pandas as pd
+
+import os
+
+POSTGRES_URL = os.getenv("POSTGRES_URL")
+DB_NAME = os.getenv("DB_NAME")
 
 types = {'bigint' : dialect_postgres.BIGINT,
          'boolean': dialect_postgres.BOOLEAN,
@@ -26,17 +31,29 @@ types = {'bigint' : dialect_postgres.BIGINT,
          'text': dialect_postgres.TEXT,
          'uuid': dialect_postgres.UUID
          }
+class MissingData(Exception):
+    pass
 
+def main_models(
+    TABLES: Union[List[str], None] = None
+    ) -> Dict[str, Table]:
+    """Table model generator
 
-def main_models() -> Dict[str, Table]:
+    Args:
+        TABLES (Union[List[str], None], optional): List of needed tables for recording data. Defaults to None.
 
-    def create_tablemodels(table_parsed: List, columns: pd.DataFrame) -> Dict[str, Table]:
+    Returns:
+        Dict[str, Table]: Dict with table names and sqlalchemy.schema.Table entities.
+    """
+    def create_tablemodels(
+        table_parsed: List, 
+        columns: pd.DataFrame) -> Dict[str, Table]:
         out = {}
         metadata = MetaData()
         for table_name in table_parsed:
             model = Table(table_name,
                           metadata)
-            for index, row in columns[columns['table_name'] == table_name].iterrows():
+            for _, row in columns[columns['table_name'] == table_name].iterrows():
                 col_values = row.values.tolist()
                 column = Column(col_values[1], types[col_values[2]])
                 model.append_column(column)
@@ -44,25 +61,37 @@ def main_models() -> Dict[str, Table]:
 
         return out
 
-    def parse_mariadbinfo():
-        engine = create_engine(URL.create('postgresql+psycopg2',
-                                          database='analytics_v2',
-                                          username='first_user',
-                                          password='Emperor011',
-                                          host='192.168.20.122',
-                                          port=8085
-                                          ))
-        with engine.connect() as conn:
-            query = text(f"""
+    def parse_info(
+        TABLES: Union[List[str], None] = None
+        ) -> pd.DataFrame:
+        engine = create_engine(POSTGRES_URL)
+        query = None
+        if TABLES:
+            q_value = f"""
         select *
-from analytics_v2.information_schema."columns" c 
-where (table_name like '%updates%' or table_name like '%remains%' or table_name like '%auto%' or table_name like '%updated%')
-            """)
+from {DB_NAME}.information_schema."columns" c 
+WHERE table_name IN ({", ".join(TABLES)})
+            """
+        else:
+            q_value = f"""
+        select *
+from {DB_NAME}.information_schema."columns" c 
+            """
+        
+        with engine.connect() as conn:
+            
+            query = text(q_value)
             df = pd.read_sql(sql=query, con=conn)
-        return df
-
-    df = parse_mariadbinfo()
-    return create_tablemodels(df['table_name'].unique().tolist(), df[['table_name', 'COLUMN_NAME'.lower(), 'udt_name'.lower()]])
+            if df.empty:
+                raise MissingData(f"There is no tables in {DB_NAME} on {POSTGRES_URL}")
+            return df
+    
+    df = parse_info(TABLES)
+    return create_tablemodels(
+        df['table_name'].unique().tolist(), 
+        df[['table_name', 'COLUMN_NAME'.lower(), 
+            'udt_name'.lower()]]
+        )
 
 def str2bool(v):
     return v.lower() in ('true')
