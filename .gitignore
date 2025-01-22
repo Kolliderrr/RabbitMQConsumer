@@ -7,4 +7,3 @@ config
 /src/__init__.py
 *__init__.py
 test.ipynb
-.gitlab-ci.yml
