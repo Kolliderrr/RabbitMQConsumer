@@ -21,8 +21,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y docker-compose tree
       
-    - name: Show tree
-      run: tree
+    - name: check binds
+      run: ls -l src/
 
     - name: Build Docker images using docker-compose
       run: docker-compose build
