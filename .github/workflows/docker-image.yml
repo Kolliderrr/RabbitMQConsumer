@@ -13,10 +13,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Check directory
+      run: ls
+
     - name: Set up Docker Compose
       run: |
         sudo apt-get update
-        sudo apt-get install -y docker-compose
-
+        sudo apt-get install -y docker-compose tree
+      
+    - name: Show tree
+      run: tree
+      
     - name: Build Docker images using docker-compose
       run: docker-compose build
