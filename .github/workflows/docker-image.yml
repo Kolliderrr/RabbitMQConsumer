@@ -14,7 +14,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Check directory
-      run: ls
+      run: echo "$PWD"
 
     - name: Set up Docker Compose
       run: |
@@ -23,6 +23,6 @@ jobs:
       
     - name: Show tree
       run: tree
-      
+
     - name: Build Docker images using docker-compose
       run: docker-compose build
