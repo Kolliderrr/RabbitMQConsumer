@@ -6,8 +6,8 @@ services:
     restart: unless-stopped
     container_name: rabbitmq_server
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     ports:
@@ -58,12 +58,10 @@ services:
       - ./postgres/pgdata:/var/lib/postgresql/data  # Внешняя папка для данных БД
       - ./postgres/logs:/logs  # Папка для логов
     healthcheck:
-      test: "pg_isready -q -d ${DB_DATABASE} -U ${DB_USERNAME}"
+      test: "pg_isready -q -d ${DB_DATABASE:-postgres} -U ${DB_USERNAME:-postgres}"
       interval: 30s
       timeout: 10s
-      retries: 100
-      start_period: 40s
-      start_interval: 5s
+      retries: 3
     ports:
       - "5432:5432"
     networks:
